@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="hi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>ChatGPT-jaise Website</title>
+  <style>
+    body { font-family: Arial, sans-serif; background:#f5f7fb; margin:0; display:flex; height:100vh; }
+    .container { margin:auto; width:720px; background:white; border-radius:8px; box-shadow:0 8px 30px rgba(0,0,0,0.08); display:flex; flex-direction:column; height:80vh; overflow:hidden; }
+    header { padding:16px; border-bottom:1px solid #eee; font-weight:700; }
+    .messages { flex:1; padding:16px; overflow:auto; display:flex; flex-direction:column; gap:12px; }
+    .msg { max-width:80%; padding:12px 14px; border-radius:12px; }
+    .user { align-self:flex-end; background:#0b93f6; color:white; border-bottom-right-radius:4px; }
+    .assistant { align-self:flex-start; background:#f1f3f5; color:#111; border-bottom-left-radius:4px; }
+    form { display:flex; gap:8px; padding:12px; border-top:1px solid #eee; }
+    input[type="text"] { flex:1; padding:10px 12px; border-radius:8px; border:1px solid #ddd; }
+    button { padding:10px 14px; border-radius:8px; border:none; background:#0b93f6; color:white; cursor:pointer; }
+    .small { font-size:12px; color:#666; margin-left:8px; }
+  </style>
+</head>
+<body>
+  <div class="container" role="application" aria-label="Chat">
+    <header>ChatGPT Clone <span class="small">- simple demo</span></header>
+    <div id="messages" class="messages"></div>
+    <form id="chatForm">
+      <input id="input" type="text" placeholder="Type karein aur Enter dabayein..." autocomplete="off" />
+      <button type="submit">Send</button>
+    </form>
+  </div>
+
+  <script>
+    const messagesEl = document.getElementById('messages');
+    const inputEl = document.getElementById('input');
+    const form = document.getElementById('chatForm');
+
+    // message history in Chat Completions format
+    const messages = [
+      { role: 'system', content: 'You are a helpful assistant. Reply concisely in Hindi if the user writes in Hindi.' }
+    ];
+
+    function render() {
+      messagesEl.innerHTML = '';
+      for (const m of messages.filter(x => x.role !== 'system')) {
+        const div = document.createElement('div');
+        div.className = 'msg ' + (m.role === 'user' ? 'user' : 'assistant');
+        div.textContent = m.content;
+        messagesEl.appendChild(div);
+      }
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+    }
+
+    async function sendMessage(text) {
+      messages.push({ role: 'user', content: text });
+      render();
+      inputEl.value = '';
+      // show typing indicator
+      const typing = { role: 'assistant', content: 'Typing...' };
+      messages.push(typing);
+      render();
+
+      try {
+        const res = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ messages })
+        });
+        const data = await res.json();
+        // remove typing
+        messages.pop();
+        if (data?.message?.content) {
+          messages.push({ role: 'assistant', content: data.message.content });
+        } else {
+          messages.push({ role: 'assistant', content: 'Kuch galat ho gaya. Server response invalid.' });
+        }
+      } catch (err) {
+        messages.pop();
+        messages.push({ role: 'assistant', content: 'Server error: ' + err.message });
+      }
+      render();
+    }
+
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const txt = inputEl.value.trim();
+      if (!txt) return;
+      sendMessage(txt);
+    });
+
+    // optional: welcome message
+    messages.push({ role: 'assistant', content: 'Namaste! Main aapki madad ke liye hoon. Kya poochhna chahte hain?' });
+    render();
+  </script>
+</body>
+</html>
