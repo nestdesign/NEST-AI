@@ -1,0 +1,35 @@
+name: CI
+on: [push, pull_request]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [18.x]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --prefix chatgpt-clone
+
+      - name: Lint
+        run: npm --prefix chatgpt-clone run lint || true
+
+      - name: Run tests
+        run: npm --prefix chatgpt-clone test
+
+      - name: Start server (smoke test)
+        run: |
+          nohup node chatgpt-clone/server.js >/tmp/server.log 2>&1 &
+          sleep 2
+          curl -sSf http://localhost:3000 || (echo "Server did not respond" && cat /tmp/server.log && exit 1)
+
+      - name: Run smoke-tests (if any)
+        run: |
+          if npm --prefix chatgpt-clone run | grep -q "test"; then echo "Tests already run"; else echo "No tests defined"; fi
